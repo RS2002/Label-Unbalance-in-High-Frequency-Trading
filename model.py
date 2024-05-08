@@ -14,7 +14,7 @@ class Mamba(nn.Module):
         return y.last_hidden_state
 
 class My_Mamba(nn.Module):
-    def __init__(self,input_dim=13,output_dim=1,length=60,hidden_dim=768, state_size=16, num_hidden_layers=32):
+    def __init__(self,input_dim=13,output_dim=1,length=60,hidden_dim=768, state_size=16, num_hidden_layers=32, norm=False):
         super().__init__()
         self.linear_input=nn.Sequential(
             nn.Linear(input_dim,256),
@@ -33,8 +33,14 @@ class My_Mamba(nn.Module):
         )
 
         self.mamba=Mamba(hidden_dim, state_size, num_hidden_layers)
+        self.norm=norm
 
     def forward(self,x):
+        if self.norm:
+            mean=torch.mean(x,dim=-1,keepdim=True)
+            std=torch.std(x,dim=-1,keepdim=True)
+            x=(x-mean)/std
+
         x=self.linear_input(x)
         x=self.mamba(x)
         x=x.reshape(x.shape[0],-1)

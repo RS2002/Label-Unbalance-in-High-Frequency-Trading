@@ -32,7 +32,8 @@ for file_name in os.listdir(root):
     i=0
 
     # num=label.shape[0]//20
-    num=label.shape[0]//5
+    # num=label.shape[0]//5
+    num = label.shape[0]
 
     while i<num:
         #TODO: 不知道limit！=0时数据如何使用!

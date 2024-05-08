@@ -1,6 +1,7 @@
 from torch.utils.data import Dataset
 import numpy as np
 import pickle
+from torch.distributions import Normal
 
 # class My_dataset(Dataset):
 #     def __init__(self, features, label):
@@ -51,6 +52,30 @@ class My_dataset(Dataset):
 
     def __getitem__(self, index):
         return self.dataset[index]['features'], self.dataset[index]['label']
+
+
+class HL_Gauss_dataset(Dataset):
+    def __init__(self, data_pkl,center,std=7.5e-4):
+        super().__init__()
+        self.dataset = data_pkl
+        self.center=center
+        self.std=std
+        self.gap=center[1]-center[0]
+        self.left = center - self.gap / 2
+        self.right = center + self.gap / 2
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, index):
+        x,mean=self.dataset[index]['features'],self.dataset[index]['label']
+        normal_dist = Normal(mean, self.std)
+        cdf_l = normal_dist.cdf(self.left)
+        cdf_r = normal_dist.cdf(self.right)
+        y = cdf_r-cdf_l
+        return x, mean, y
+
+
 
 # test
 if __name__ == '__main__':
