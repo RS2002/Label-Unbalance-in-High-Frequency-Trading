@@ -53,22 +53,25 @@ def iteration(model,data_loader,optim,loss_func,center,device,train=True):
         x=x.float().to(device)
         mean=mean.float().to(device)
         label=label.float().to(device)
+        label=torch.argmax(label,dim=-1)
 
         y=model(x)
-        y=nn.functional.softmax(y,dim=-1)
-
-        loss=loss_func(torch.log(y),label)
+        loss=loss_func(y,label)
         loss_list.append(loss.item())
 
-        y_mean = torch.sum(center*y,dim=-1)
+
+        _, y = torch.max(y,dim=-1)
+
+        # print(label)
+        # print(y)
+
+        y_mean = center[y]
         mse = torch.mean((y_mean-mean)**2)
         pos = (mean!=0).float()
         mape = torch.sum(torch.abs(y_mean-mean)/(torch.abs(mean)+1e-8)*pos)/torch.sum(pos)
         mse_list.append(mse.item())
         mape_list.append(mape.item())
 
-        y=torch.argmax(y,dim=-1)
-        label=torch.argmax(label,dim=-1)
         acc=torch.mean((y==label).float())
         acc_list.append(acc.item())
 
@@ -98,7 +101,17 @@ def main():
 
     with open(args.data_path + "/data_au.pkl", 'rb') as f:
         data_pkl = pickle.load(f)
-    center=torch.arange(args.start,args.end+args.gap,args.gap).to(device)
+
+    center=torch.arange(args.start,args.end+args.gap,args.gap)
+    # center=torch.arange(-0.001,0.001,0.0002)
+    # center = torch.arange(-0.0009, 0.0011, 0.0002)
+    center = center.to(device)
+
+    # weight = torch.tensor([50.0,40,30,20,2,3,20,30,40,50]).to(device)
+    # loss_func = nn.CrossEntropyLoss(weight=weight)
+    loss_func = nn.CrossEntropyLoss()
+
+
     class_num=center.shape[0]
     dataset = HL_Gauss_dataset(data_pkl,center,std=args.std)
 
@@ -122,7 +135,6 @@ def main():
     total_params = sum(p.numel() for p in parameters if p.requires_grad)
     print('total parameters:', total_params)
     optim = torch.optim.Adam(parameters, lr=args.lr, weight_decay=0.01)
-    loss_func = nn.KLDivLoss()
 
     best_loss = 1e8
     best_mape = 1e8
@@ -152,9 +164,9 @@ def main():
         with open(name+".txt", 'a') as file:
             file.write(log + "\n")
 
-        if j%10==0:
-            result=torch.cumsum(result,dim=0)
-            np.save(name + ".npy",result.cpu())
+        # if j%10==0:
+        result=torch.cumsum(result,dim=0)
+        np.save(name + ".npy",result.cpu())
 
         if acc >= best_acc or loss <= best_loss or mse <= best_mse or mape <= best_mape:
             torch.save(model.state_dict(), name+".pth")
