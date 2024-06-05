@@ -75,7 +75,16 @@ class HL_Gauss_dataset(Dataset):
         y = cdf_r-cdf_l
         return x, mean, y
 
+class Three_label_dataset(Dataset):
+    def __init__(self, data_pkl):
+        super().__init__()
+        self.dataset = data_pkl
 
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, index):
+        return self.dataset[index]['features'], self.dataset[index]['three_label'], self.dataset[index]['label']
 
 # test
 if __name__ == '__main__':
