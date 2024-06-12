@@ -139,6 +139,9 @@ def main():
         case 'bert':
             model = My_BERT(input_dim=args.input_dim, output_dim=class_num, hidden_dim=args.hidden_dim,
                              intermediate_size=args.intermediate_size, num_attention_heads=args.num_attention_heads, num_hidden_layers=args.num_hidden_layers, norm=args.norm).to(device)
+        case _:
+            print("No Such Model!")
+            exit(-1)
 
     name = "{:}_{:}_{:}".format(args.hidden_dim, args.state_size, args.num_hidden_layers)
     if len(cuda_devices) > 1 and not args.cpu:

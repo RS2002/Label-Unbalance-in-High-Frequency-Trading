@@ -1,5 +1,5 @@
 from dataset import My_dataset
-from model import My_Mamba
+from model import My_Mamba,RNN,LSTM,My_BERT,TCN
 import torch.nn as nn
 import numpy as np
 import argparse
@@ -8,6 +8,12 @@ import torch
 import tqdm
 from torch.utils.data import DataLoader
 import pickle
+from scipy.stats import pearsonr
+from sklearn.metrics import r2_score
+
+# scale=1000.0
+scale=1.0
+
 
 def get_args():
     parser = argparse.ArgumentParser(description='')
@@ -16,14 +22,18 @@ def get_args():
     parser.add_argument('--hidden_dim', type=int, default=512)
     parser.add_argument('--state_size', type=int, default=8)
     parser.add_argument('--num_hidden_layers', type=int, default=16)
+    parser.add_argument('--intermediate_size', type=int, default=3072)
+    parser.add_argument('--num_attention_heads', type=int, default=12)
     parser.add_argument('--output_dim', type=int, default=1)
     parser.add_argument("--data_path",type=str,default="/disk1/imb/202305_all")
     parser.add_argument("--model_path",type=str,default=None)
+    parser.add_argument("--model",type=str,default="mamba")
     parser.add_argument("--cpu", action="store_true",default=False)
+    parser.add_argument("--norm", action="store_true",default=False)
     # parser.add_argument("--cuda", type=str, default='0')
     parser.add_argument("--cuda_devices", type=int, nargs='+', default=[0,1], help="CUDA device ids")
 
-    parser.add_argument('--lr', type=float, default=0.0005)
+    parser.add_argument('--lr', type=float, default=0.0001)
     parser.add_argument('--epoch', type=int, default=30)
     parser.add_argument('--test_prop', type=float, default=0.2)
     args = parser.parse_args()
@@ -39,12 +49,19 @@ def iteration(model,data_loader,optim,loss_func,device,train=True):
 
     loss_list = []
     mape_list = []
+    result=None
+    gt=None
 
     pbar = tqdm.tqdm(data_loader, disable=False)
     for x, label in pbar:
         x=x.float().to(device)
         label=label.float().to(device)
+
+        label*=scale
+
         y=model(x)
+        y=torch.squeeze(y,dim=-1)
+
         loss=loss_func(y,label)
         loss_list.append(loss.item())
         mape = torch.mean(torch.abs(y-label)/(torch.abs(label)+1e-8))
@@ -53,10 +70,21 @@ def iteration(model,data_loader,optim,loss_func,device,train=True):
         if train:
             model.zero_grad()
             loss.backward()
+            # loss_total = loss + mape
+            # loss_total.backward()
             nn.utils.clip_grad_norm_(model.parameters(), 3.0)
             optim.step()
+        else:
+            y /= scale
+            label /= scale
+            if result is None:
+                result=y
+                gt=label
+            else:
+                result=torch.cat([result,y],dim=0)
+                gt=torch.cat([gt,label],dim=0)
 
-    return np.mean(loss_list),np.mean(mape_list)
+    return np.mean(loss_list),np.mean(mape_list),result,gt
 
 def main():
     args=get_args()
@@ -90,15 +118,37 @@ def main():
     test_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=False)
 
 
-    model = My_Mamba(input_dim=args.input_dim,output_dim=args.output_dim,hidden_dim=args.hidden_dim, state_size=args.state_size, num_hidden_layers=args.num_hidden_layers).to(device)
-    name="{:}_{:}_{:}".format(args.hidden_dim,args.state_size,args.num_hidden_layers)
+    # model = My_Mamba(input_dim=args.input_dim,output_dim=args.output_dim,hidden_dim=args.hidden_dim, state_size=args.state_size, num_hidden_layers=args.num_hidden_layers, norm=args.norm).to(device)
+    # name="{:}_{:}_{:}".format(args.hidden_dim,args.state_size,args.num_hidden_layers)
+    match args.model:
+        case 'mamba':
+            model = My_Mamba(input_dim=args.input_dim, output_dim=args.output_dim, hidden_dim=args.hidden_dim,
+                             state_size=args.state_size, num_hidden_layers=args.num_hidden_layers,norm=args.norm).to(device)
+            name = "Mamba_{:}_{:}_{:}".format(args.hidden_dim, args.state_size, args.num_hidden_layers)
+        case 'rnn':
+            model = RNN(input_dim=args.input_dim, class_num=args.output_dim,norm=args.norm).to(device)
+            name="RNN"
+        case 'lstm':
+            model = LSTM(input_dim=args.input_dim, class_num=args.output_dim, norm=args.norm).to(device)
+            name="LSTM"
+        case 'bert':
+            model = My_BERT(input_dim=args.input_dim, output_dim=args.output_dim, hidden_dim=args.hidden_dim,
+                             intermediate_size=args.intermediate_size, num_attention_heads=args.num_attention_heads, num_hidden_layers=args.num_hidden_layers, norm=args.norm).to(device)
+            name = "BERT_{:}_{:}_{:}_{:}".format(args.hidden_dim, args.intermediate_size, args.num_attention_heads,args.num_hidden_layers)
+        case 'tcb':
+            model = TCN(input_size=args.input_dim,output_size=args.output_dim,num_channels=[30]*8,kernel_size=7,dropout=0.1)
+            name="TCN"
+        case _:
+            print("No Such Model!")
+            exit(-1)
+
     if len(cuda_devices) > 1 and not args.cpu:
         model = nn.DataParallel(model, device_ids=cuda_devices)
 
     parameters = set(model.parameters())
     total_params = sum(p.numel() for p in parameters if p.requires_grad)
     print('total parameters:', total_params)
-    optim = torch.optim.Adam(parameters, lr=args.lr, weight_decay=0.01)
+    optim = torch.optim.Adam(parameters, lr=args.lr)#, weight_decay=0.01)
     loss_func=nn.MSELoss()
 
     best_loss = 1e8
@@ -109,18 +159,29 @@ def main():
 
     while True:
         j += 1
-        loss,mape = iteration(model,train_loader,optim,loss_func,device,train=True)
+        loss,mape,_,_ = iteration(model,train_loader,optim,loss_func,device,train=True)
         log = "Epoch {} | Train Loss {}, Train MAPE {:06f} | ".format(j, loss, mape)
         print(log)
         # with open("log.txt", 'a') as file:
         with open(name+".txt", 'a') as file:
             file.write(log)
-        loss,mape = iteration(model,test_loader,optim,loss_func,device,train=False)
-        log = "Test Loss {}, Test MAPE {:06f}".format(loss, mape)
+        loss,mape,result,gt = iteration(model,test_loader,optim,loss_func,device,train=False)
+
+        correlation, _ = pearsonr(result.cpu(), gt.cpu())
+        r2 = r2_score(result.cpu(), gt.cpu())
+
+        result=result*gt
+        stability=torch.mean(result)/torch.std(result)
+        log = "Test Loss {}, Test MAPE {:06f} | Test Stability {:06f}, Correlation {:06f}, R2 {:06f}".format(loss, mape, stability, correlation, r2)
         print(log)
         # with open("log.txt", 'a') as file:
         with open(name+".txt", 'a') as file:
             file.write(log + "\n")
+
+        if j%1==0:
+            result=torch.cumsum(result,dim=0)
+            np.save(name + ".npy",result.cpu())
+
         if loss <= best_loss:
             torch.save(model.state_dict(), name+".pth")
             # torch.save(model.state_dict(), "model.pth")
