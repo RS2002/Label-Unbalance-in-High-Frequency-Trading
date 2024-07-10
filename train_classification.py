@@ -55,8 +55,12 @@ def iteration(model,data_loader,optim,loss_func,device,train=True):
     pbar = tqdm.tqdm(data_loader, disable=False)
     for x, ret, label in pbar:
         x=x.float().to(device)
+
         label+=1
         label=label.long().to(device)
+
+        # label = torch.sign(ret).long().to(device)
+        # label = label + 1
 
         y=model(x)
         loss=loss_func(y,label)
@@ -70,7 +74,7 @@ def iteration(model,data_loader,optim,loss_func,device,train=True):
         if train:
             model.zero_grad()
             loss.backward()
-            nn.utils.clip_grad_norm_(model.parameters(), 3.0)
+            # nn.utils.clip_grad_norm_(model.parameters(), 3.0)
             optim.step()
         else:
             if result is None:
@@ -118,7 +122,7 @@ def main():
     parameters = set(model.parameters())
     total_params = sum(p.numel() for p in parameters if p.requires_grad)
     print('total parameters:', total_params)
-    optim = torch.optim.Adam(parameters, lr=args.lr, weight_decay=0.01)
+    optim = torch.optim.Adam(parameters, lr=args.lr)#, weight_decay=0.01)
     loss_func = nn.CrossEntropyLoss()
 
     item_list = args.item_list
