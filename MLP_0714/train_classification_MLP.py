@@ -10,7 +10,7 @@ from dataset import load_data
 IMPORTANT_CONSTANTS = {
     'hidden_dim': 128,
     'batch_size': 512,
-    'lr': 0.00001,
+    'lr': 0.000025,
     'l_epoch': 30,
     'a_epoch': 30,
     'normalization': True,
@@ -18,7 +18,7 @@ IMPORTANT_CONSTANTS = {
 
 # version_num = 9, lr = 0.000025, normalization = True；hidden_dim = 128 训练117次
 
-version_num = 10
+version_num = 9
 date_str = '0711'
 nor_str = 'Nor' if IMPORTANT_CONSTANTS['normalization'] else 'noNor'
 
