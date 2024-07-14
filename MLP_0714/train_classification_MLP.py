@@ -16,21 +16,9 @@ IMPORTANT_CONSTANTS = {
     'normalization': True,
 }
 
-# version_num = 3, lr = 0.0001, normalization = False; old name
-# version_num = 4, lr = 0.0001, normalization = True
-# version_num = 5, lr = 0.00005, normalization = True；训练100次以下
-# version_num = 6, lr = 0.00005, normalization = False
-# version_num = 7, lr = 0.000025, normalization = True；训练145次
-# version_num = 8, lr = 0.00001, normalization = True；训练189次
-# version_num = 8/9, lr = 0.000005, normalization = True；训练189次
-# hidden_dim: 64
-# next: hidden_dim: 128
 # version_num = 9, lr = 0.000025, normalization = True；hidden_dim = 128 训练117次
-# version_num = 10, lr = 0.00001, normalization = True；hidden_dim = 128
 
-# next step: change hidden_dim / epoch
-
-version_num = 10  # 3: normalization; 4 (without): normalization
+version_num = 10
 date_str = '0711'
 nor_str = 'Nor' if IMPORTANT_CONSTANTS['normalization'] else 'noNor'
 
@@ -92,12 +80,10 @@ def iteration(model, data_loader, optim, loss_func, device, train=True):
 
     pbar = tqdm.tqdm(data_loader, disable=False)
     for x, ret, label in pbar:
-        # 交叉熵损失函数 torch.nn.CrossEntropyLoss 要求标签是从0开始的非负整数，
-        # 因为标签作为索引，用于从概率分布中选择值。索引必须是有效的数组索引，否则会引发错误
         label += 1
         x = x.float().to(device)
-        label = label.long().to(device)  # 注意存为了long()而非float()
-
+        label = label.long().to(device)
+        
         y = model(x)
         loss = loss_func(y, label)
         loss_list.append(loss.item())
@@ -167,8 +153,7 @@ def main():
     parameters = set(model.parameters())
     total_params = sum(p.numel() for p in parameters if p.requires_grad)
     print('total parameters:', total_params)
-    optim = torch.optim.Adam(parameters, lr=args.lr,
-                             weight_decay=0.01)  # weight_decay 是权重衰减的参数，在优化过程中对模型参数施加 L2 正则化项。通过控制参数的大小，权重衰减可以有效防止模型过拟合，提高模型的泛化能力。
+    optim = torch.optim.Adam(parameters, lr=args.lr, weight_decay=0.01) 
     loss_func = nn.CrossEntropyLoss()
 
     item_list = args.item_list
