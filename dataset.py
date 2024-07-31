@@ -21,7 +21,7 @@ class MyDataset(Dataset):
         return self.feature[index-self.window+1:index+1], self.gt[index], self.label[index]
 
 
-def load_data(data_path="/disk1/imb/202305_all/data_all_au2308_factors_and_label.csv",train_prop=0.8,window=60):
+def load_data(data_path="/disk1/imb/202305_all/data_all_au2308_factors_and_label.csv",train_prop=0.8,valid_prop=None,window=60):
     df = pd.read_csv(data_path, na_values=np.nan)
     features = df[['mid_price', 'diff_last_price', 'diff_bid_price1', 'diff_bid_price2', 'diff_bid_price3', 'diff_bid_price4', 'diff_bid_price5', 'diff_ask_price1', 'diff_ask_price2', 'diff_ask_price3', 'diff_ask_price4', 'diff_ask_price5', 'log_volume']]
     gt = df['return']
@@ -32,7 +32,9 @@ def load_data(data_path="/disk1/imb/202305_all/data_all_au2308_factors_and_label
 
     data_num = len(label)
     train_num = int(train_prop*data_num)
-
-    return MyDataset(features[:train_num],gt[:train_num],label[:train_num]), MyDataset(features[train_num:],gt[train_num:],label[train_num:])
-
+    if valid_prop is None:
+        return MyDataset(features[:train_num],gt[:train_num],label[:train_num],window), MyDataset(features[train_num:],gt[train_num:],label[train_num:],window)
+    else:
+        valid_num = int(valid_prop*data_num)
+        return MyDataset(features[:train_num],gt[:train_num],label[:train_num],window), MyDataset(features[train_num:train_num+valid_num],gt[train_num:train_num+valid_num],label[train_num:train_num+valid_num],window), MyDataset(features[train_num+valid_num:],gt[train_num+valid_num:],label[train_num+valid_num:],window)
 
