@@ -274,6 +274,30 @@ class Weight_Net(nn.Module):
 
 
 
+
+class MultiClassCostSensitiveLoss(nn.Module):
+
+    def __init__(self, class_weights):
+        super(MultiClassCostSensitiveLoss, self).__init__()
+        self.class_weights = class_weights
+        self.cross_entropy = nn.CrossEntropyLoss(reduction="none")
+
+    def forward(self, y_pred, y_true):
+        # Initialize the loss
+        total_loss = 0.0
+
+        # Compute the squared errors
+        # errors_sq = torch.square(y_true - y_pred)
+        errors_sq = self.cross_entropy(y_pred,y_true)
+
+        # Accumulate the weighted loss for each class
+        for i in range(len(self.class_weights)):
+            class_loss = torch.sum(errors_sq[y_true == i])
+            total_loss += self.class_weights[i] * class_loss
+
+        return total_loss
+
+
 if __name__ == '__main__':
     # x=torch.randn([2,60,13])
     #
@@ -301,15 +325,22 @@ if __name__ == '__main__':
     # y = mlp(x)
     # print(y.shape)
 
-    x = torch.randn([1,1,100,100])
-    # resnet = ResNet5(num_classes=100)
-    # total_params = sum(p.numel() for p in resnet.parameters() if p.requires_grad)
+    # x = torch.randn([1,1,100,100])
+    # # resnet = ResNet5(num_classes=100)
+    # # total_params = sum(p.numel() for p in resnet.parameters() if p.requires_grad)
+    # # print('total parameters:', total_params)
+    # # y  = resnet(x)
+    # # print(y.shape)
+    # weightnet = Weight_Net(100)
+    # total_params = sum(p.numel() for p in weightnet.parameters() if p.requires_grad)
     # print('total parameters:', total_params)
-    # y  = resnet(x)
+    # y = weightnet(x)
     # print(y.shape)
-    weightnet = Weight_Net(100)
-    total_params = sum(p.numel() for p in weightnet.parameters() if p.requires_grad)
-    print('total parameters:', total_params)
-    y = weightnet(x)
-    print(y.shape)
+
+    x = torch.randn([2,3])
+    y = torch.tensor([0,1])
+    weight = torch.tensor([8,1,8])
+    loss = MultiClassCostSensitiveLoss(weight)
+    l = loss(x,y)
+    print(l)
 

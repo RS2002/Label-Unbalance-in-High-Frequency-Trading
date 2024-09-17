@@ -1,4 +1,4 @@
-from models import Mamba,BERT,LSTM,MLP
+from models import Mamba,BERT,LSTM,MLP, MultiClassCostSensitiveLoss
 import torch.nn as nn
 import numpy as np
 import argparse
@@ -25,8 +25,10 @@ def get_args():
     parser.add_argument("--dim_list", type=int, default=[13*60,64,64,3])
 
     # methods for label unbalance
-    parser.add_argument("--class_weight", type=float, default=[1.0,1.0,1.0])
+    parser.add_argument("--class_weight", type=float, nargs='+', default=[1.0,1.0,1.0])
     parser.add_argument("--data_balance", action="store_true",default=False)
+    parser.add_argument("--focal_loss", action="store_true",default=False)
+    parser.add_argument("--sensitive_loss", action="store_true",default=False)
 
 
     parser.add_argument("--model",type=str,default="mamba")
@@ -42,8 +44,8 @@ def get_args():
     parser.add_argument('--batch_size', type=int, default=512)
     parser.add_argument('--lr', type=float, default=0.0001)
     parser.add_argument('--epoch', type=int, default=10)
-    parser.add_argument('--valid_prop', type=float, default=0.2)
-    parser.add_argument('--test_prop', type=float, default=0.2)
+    parser.add_argument('--valid_prop', type=float, default=0.1)
+    parser.add_argument('--test_prop', type=float, default=0.1)
     args = parser.parse_args()
     return args
 
@@ -69,6 +71,15 @@ def data_preprocess(x, gt, label):
     label = label[keep_index]
 
     return x, gt, label
+
+def focal_loss(y_hat,y,gamma=2.0):
+    # 计算 softmax 概率
+    p = torch.softmax(y_hat, dim=1)  # 对于多类分类
+    p_t = p.gather(1, y.unsqueeze(1))  # 获取目标类的概率
+    # 计算 Focal Loss
+    loss = -(1 - p_t) ** gamma * torch.log(p_t)
+    return torch.mean(loss)
+
 
 def iteration(model,data_loader,optim,loss_func,device,train=True,data_balance=False):
     if train:
@@ -98,7 +109,10 @@ def iteration(model,data_loader,optim,loss_func,device,train=True,data_balance=F
         # label = label + 1
 
         y=model(x)
+
         loss=loss_func(y,label)
+        # loss=focal_loss(y,label)
+
         loss_list.append(loss.item())
 
         y=torch.argmax(y,dim=-1)
@@ -167,7 +181,12 @@ def main():
 
     weight = torch.tensor(args.class_weight).to(device)
     # weight = torch.tensor([8.0,1.0,8.0]).to(device)
-    loss_func = nn.CrossEntropyLoss(weight=weight)
+    if args.focal_loss:
+        loss_func = focal_loss
+    elif args.sensitive_loss:
+        loss_func = MultiClassCostSensitiveLoss(weight)
+    else:
+        loss_func = nn.CrossEntropyLoss(weight=weight)
 
 
     # item_list = args.item_list
@@ -285,6 +304,7 @@ def main():
             with open("classification.txt", 'a') as file:
                 file.write(log)
 
+            np.save(item + "_output_latest.npy", output.cpu())
             if save:
                 np.save(item+"_output.npy",output.cpu())
             if j==1:
