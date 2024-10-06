@@ -2,6 +2,8 @@
 
 
 
+![](./img/main.png)
+
 ## Method
 
 In this project, we mainly focus on the high frequency trading prediction in the scenario of label imbalance, based on machine learning methods. We provide four networks including: MLP, LSTM, BERT, and Mamba as the backbone. We use two simple methods to reduce the influence of label imbalance, including: resampling and class weighting.
@@ -31,8 +33,3 @@ We provide the following methods for addressing label imbalance:
 - `--class_weight`: You can specify the weight for each class in the loss function.
 
 - `--data_balance`: We randomly delete 7/8 of the data in the '0' class to balance the dataset.
-
-  
-
-## Experiment Result
-
