@@ -1,5 +1,7 @@
 # Label Unbalance in High Frequency Trading
 
+**Report:** [Label Unbalance in High-frequency Trading](https://arxiv.org/abs/2503.09988)
+
 
 
 ![](./img/main.png)
@@ -13,8 +15,6 @@ In this project, we mainly focus on the high frequency trading prediction in the
 ## Dataset
 
 Due to copyright restrictions, we do not provide the original data. However, we provide the data structure and class distribution in our experiment. As a result, you can replace the `dataset.py` file with your own data and change some necessary parameters in `train_classification.py` to run the code on your dataset.
-
-**TODO: data description** 
 
 
 
@@ -33,3 +33,20 @@ We provide the following methods for addressing label imbalance:
 - `--class_weight`: You can specify the weight for each class in the loss function.
 
 - `--data_balance`: We randomly delete 7/8 of the data in the '0' class to balance the dataset.
+
+
+
+## Reference
+
+```
+@misc{zhao2025labelunbalancehighfrequencytrading,
+      title={Label Unbalance in High-frequency Trading}, 
+      author={Zijian Zhao and Xuming Chen and Jiayu Wen and Mingwen Liu and Xiaoteng Ma},
+      year={2025},
+      eprint={2503.09988},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2503.09988}, 
+}
+```
+
