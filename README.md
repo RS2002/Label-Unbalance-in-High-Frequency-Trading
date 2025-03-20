@@ -41,7 +41,7 @@ We provide the following methods for addressing label imbalance:
 ```
 @misc{zhao2025labelunbalancehighfrequencytrading,
       title={Label Unbalance in High-frequency Trading}, 
-      author={Zijian Zhao and Xuming Chen and Jiayu Wen and Mingwen Liu and Xiaoteng Ma},
+      author={Zijian Zhao and Xuming Zhang and Jiayu Wen and Mingwen Liu and Xiaoteng Ma},
       year={2025},
       eprint={2503.09988},
       archivePrefix={arXiv},
