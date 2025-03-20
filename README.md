@@ -2,6 +2,7 @@
 
 **Report:** [Label Unbalance in High-frequency Trading](https://arxiv.org/abs/2503.09988)
 
+[高频交易中的标签不平衡问题研究 -- QuantML](https://mp.weixin.qq.com/s/Uhp8GDqV89cYzAoTNbpRQw)
 
 
 ![](./img/main.png)
